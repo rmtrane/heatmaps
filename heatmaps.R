@@ -58,6 +58,7 @@ cat(paste(path, '\n', sep = ' '))
 ## Set variables for later use
 ##
 
+## Let the user know what the default values are... 
 cat('\nDefault values: 
 logbase = 2.
 pseudo number = 1.
@@ -67,7 +68,11 @@ Dendogram will be included.
 Line size is 1.
 Database will NOT be rebuild.'
 )
+
+## ... then ask if the user wants to simply use the defaults. 
 all.default <- readline('Use all default? y/n ')
+
+## If the user returns 'y', then use default values.
 if(all.default == 'y'){
   logbase <- 2
   ps <- 1
@@ -80,6 +85,8 @@ if(all.default == 'y'){
   p.value.cutoff <- 0.05
   
 } else {
+  ## Otherwise, go through one by one.
+  
   message('To use default values, hit enter!')
   
   ## Choose logarithmic base for log transformation of fold changes 
@@ -188,7 +195,6 @@ lists <- read.table(file = lists.file,
 
 ## Start loop over all lists
 for (no in 1:length(lists)){
-  
   message(paste('Number', no, 'out of', length(lists),
                 sep = ' '))
   
@@ -206,34 +212,46 @@ for (no in 1:length(lists)){
   ## Get p-value from current list
   p.value <- cur.list['PValue',]
   
+  
+  ## Get significant genes from list
   sigGenes <- as.character(cur.list['Genes',])
   sigGenes <- unlist(strsplit(sigGenes, split = ', ', fixed = TRUE))
   
+  ## Get genes from cuff links object
   genesDiff <- getGenes(cuf, sigGenes)@diff
   
+  ## Create restricted fpkm matrix
   fpkm.sigGenes <- fpkmMat[sigGenes,]	
   
+  ## Create lists to hold ... and ...
   dbs <- list()
   dbs.na <- list()
   
+  ## Create matrix with names -- each row corresponds to a pair of genes
   name.matrix <- matrix(names(fpkmMat), ncol = 2, byrow = TRUE)
   
+  ## Loop over pairs of genes
   for(i in 1:nrow(name.matrix)){
+    ## Get fold changes from log(Fold Changes)
     dbs[[i]] <- dbs.na[[i]] <- logFC(fpkm.sigGenes,
                                      mutants = name.matrix[i,1],
                                      WT = name.matrix[i,2],
                                      logBase = logbase,
                                      pseudo = ps)
     
+    ## If user said yes to check for significance...
     if(check.for.significance == 'y'){
+      ## For each gene...
       for(gene.id in sigGenes){
         print(subset(genesDiff, gene_id == gene.id &
                        sample_1 == name.matrix[i,1] & 
                        sample_2 == name.matrix[i,2])$significant)
+        
+        ## ... if p-value > p.value.cutoff...
         if(subset(genesDiff, gene_id == gene.id &
                   sample_1 == name.matrix[i,1] & 
                   sample_2 == name.matrix[i,2])$p_value > p.value.cutoff){
-          
+          ### ... write NA to dbs.na
           dbs.na[[i]][gene.id] <- NA
         }
       }
@@ -243,24 +261,34 @@ for (no in 1:length(lists)){
     
   }
   
+  ## Create matrix from lists
   DB <- do.call(cbind, dbs)
   DB.na <- do.call(cbind, dbs.na) 
   
+  ## Filename
   Filename <- paste(paste(name, collapse = '_'),
                     '.pdf',
                     sep = '')
-  
+  ## Create and save heatmap 
   pdf(file = paste(path, Filename, sep = ''),
       height = unit(18,'cm'),
       width = unit(12,'cm'))
-  HEATMAPS(db = DB,
-           db.na = DB.na,
-           cols = cols,
-           na.col = na.col,
-           go.term = go.term,
-           name = name,
-           p.value = p.value,
-           line.size = LS,
-           p.value.cutoff = p.value.cutoff)
+  
+  HEATMAPS(
+    ## ???
+    db = DB,
+    ## ???
+    db.na = DB.na,
+    ## Colours to use
+    cols = cols,
+    ## Colour for NA
+    na.col = na.col,
+    ## 
+    go.term = go.term,
+    name = name,
+    p.value = p.value,
+    line.size = LS,
+    p.value.cutoff = p.value.cutoff
+  )
   dev.off()
 }
